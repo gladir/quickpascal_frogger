@@ -26,7 +26,7 @@ Var
  BileauX:Array[0..3,0..9]of Integer;
  WaitCar,WaitBileau,NmWait,Timer:Word;
  FroggerX,FroggerY:Integer;
- Accident,Life:Byte;
+ Traverser,Accident,Life:Byte;
  K:Word;
 
 Const
@@ -178,7 +178,8 @@ Procedure Draw(S:String);Begin
  End
 End;
 
-Procedure _PutFrogger(X,Y:Integer);Begin
+Procedure _PutFrogger(X,Y:Integer);
+Begin
  SetPos(X+8,Y); {Affiche la grenouille}
  Draw('RFL3BL3L0BL2R0BR11R0BR2DL2BL2L5BL2L2FBR3R5BR3GL0BL2L5BL2FR7GL5R5BFBRL0BL2L5BL2DR9DBL3L3BL3DL2BR11R2');
 End;
@@ -208,20 +209,20 @@ Procedure PutFeuille(X,Y:Integer);Begin
  Draw('C3F3DFD2GDGL2H2UE2G3HBD2D0GBU2LHU2E4RE');
 End;
 
-Procedure PutBileau(X,Y:Integer);Begin
+Procedure PutBillot(X,Y:Integer);Begin
  _SetViewport(0,0,239,199);
- SetPos(X+48,Y); {Bileau}
+ SetPos(X+48,Y); {Billot}
  Draw('C2L45G2DGD2FDF2R46E2UEU2HUH2G2DGD2FDF2');
  SetPos(X+48,0); {Tiret b–che}
  Draw('C3BU3L3BD3L1BH2L2BG1BL4L3BH3L5BD3BG2R3BG3R5BR4R3BE2BR3R2');
- _SetViewport(0,0,319,199); 
+ _SetViewport(0,0,319,199);
 End;
 
-Procedure UnputBileau(X,Y:Integer);Begin
+Procedure UnputBillot(X,Y:Integer);Begin
  _SetViewport(0,0,239,199);
  _SetColor(Blue);
  _Rectangle(_GFillInterior,X,Y,X+56,Y+11);
- _SetViewport(0,0,319,199); 
+ _SetViewport(0,0,319,199);
 End;
 
 Procedure PutCarRight(X,Y,Kr:Integer);Begin
@@ -236,13 +237,29 @@ Procedure PutCarLeft(X,Y,Color:Integer);Begin
  Draw('L5GR8FLBL5L0BL4DBR4R0BR5RFL2BL5L0BL5L2GLR17FL19GR21DL21BDBRR4BR10R4BGBL2R2BL14L2BR26BE10');
 End;
 
-Function RunBileau:Boolean;
+Procedure UpdateTraverser;
+Var
+ S:String;
+Begin
+ _SetTextPosition(2,1);
+ _SetBkColor(LightGreen);
+ _SetTextColor(LightGray);
+ Str(Traverser,S);
+ _OutText('Traverser : '+S);
+End;
+
+Function RunBillot:Boolean;
 Label _Break,_Break2;
+Const Largeur=56;
 Var
  I,J,K:Byte;
  BileauFound:Boolean;
+ SurLeBileau:Boolean;
+ MoveFrogger:Boolean;
 Begin
- RunBileau:=True;
+ RunBillot:=True;
+ MoveFrogger:=False;
+ SurLeBileau:=False;
  For J:=0to 1do For I:=0to 9do Begin
   If BileauX[J,I]=-1Then Begin
    BileauFound:=False;
@@ -257,7 +274,7 @@ _Break:
     If WaitBileau=0Then Begin
      WaitBileau:=Random(NmWait);
      BileauX[J,I]:=204+J*12;
-     PutBileau(BileauX[J,I],(5+J)*12);
+     PutBillot(BileauX[J,I],(6+J)*12);
     End
      Else
     Dec(WaitBileau);
@@ -265,21 +282,32 @@ _Break:
   End
    Else
   Begin
-   UnputBileau(BileauX[J,I],(5+J)*12);
+   UnputBillot(BileauX[J,I],(6+J)*12);
    If BileauX[J,I]<24Then BileauX[J,I]:=-1
     Else
    Begin
     Dec(BileauX[J,I],24);
-    PutBileau(BileauX[J,I],(5+J)*12);
+    PutBillot(BileauX[J,I],(6+J)*12);
    End;
   End;
-  If(FroggerY=(5+J)*12)and((FroggerX-BileauX[J,I])in[0..23])Then Exit;
+  If(FroggerY=(6+J)*12)Then Begin
+   If Not(MoveFrogger)Then Begin
+    If(FroggerX > 0)Then Begin
+     Dec(FroggerX,24);
+	 MoveFrogger:=True;
+    End;
+   End;
+   If((FroggerX-BileauX[J,I])in[0..Largeur-1])Then Begin
+    SurLeBileau:=True;
+    PutFrogger(FroggerX,FroggerY);
+   End;
+  End;
  End;
  For J:=2to 3do For I:=0to 9do Begin
   If BileauX[J,I]=-1Then Begin
    BileauFound:=False;
    For K:=0to 9do Begin
-    If BileauX[J,K]in[0..23]Then Begin
+    If BileauX[J,K]in[0..Largeur-1]Then Begin
 	 BileauFound:=True;
 	 Goto _Break2;
 	End;
@@ -289,7 +317,7 @@ _Break2:
     If WaitBileau=0Then Begin
      WaitBileau:=Random(NmWait);
      BileauX[J,I]:=(J-2)*12;
-     PutBileau(BileauX[J,I],(5+J)*12);
+     PutBillot(BileauX[J,I],(6+J)*12);
     End
      Else
     Dec(WaitBileau);
@@ -297,14 +325,26 @@ _Break2:
   End
    Else
   Begin
-   UnputBileau(BileauX[J,I],(5+J)*12);
+   UnputBillot(BileauX[J,I],(6+J)*12);
    Inc(BileauX[J,I],24);
-   If BileauX[J,I]>(240-24)Then BileauX[J,I]:=-1
-   Else PutBileau(BileauX[J,I],(5+J)*12);
+   If BileauX[J,I]>(240-Largeur)Then BileauX[J,I]:=-1
+   Else PutBillot(BileauX[J,I],(6+J)*12);
   End;
-  If(FroggerY=(5+J)*12)and((FroggerX-BileauX[J,I])in[0..23])Then Exit;
+  If(FroggerY=(6+J)*12)Then Begin
+   If Not(MoveFrogger)Then Begin
+    If(FroggerX <= 239)Then Begin
+	 Inc(FroggerX,24);
+	 MoveFrogger:=True;
+	End;
+   End;
+   If((FroggerX-BileauX[J,I])in[0..Largeur-1])Then Begin
+    SurLeBileau:=True;
+    PutFrogger(FroggerX,FroggerY);
+   End;
+  End;
  End;
- RunBileau:=False;
+ If(SurLeBileau)Then RunBillot:=False
+		Else RunBillot:=FroggerY<=108;
 End;
 
 Function RunCar:Boolean;
@@ -407,7 +447,7 @@ BEGIN
   WriteLn('Mode video non supporte');
   Halt;
  End;
- Life:=4;NmWait:=64;
+ Life:=4;NmWait:=64;Traverser:=0;
  Repeat
   _SetColor(Green);
   _Rectangle(_GFillInterior,0,0,239,35);
@@ -425,6 +465,7 @@ BEGIN
   _SetTextColor(LightRed);
   _OutText('Horloge:');
   PutLife;
+  UpdateTraverser;
   FillChar(CarX,SizeOf(CarX),$FF);
   FillChar(BileauX,SizeOf(Bileaux),$FF);
   WaitCar:=0;WaitBileau:=0;FroggerX:=120;FroggerY:=180;Timer:=400;Accident:=0;
@@ -437,8 +478,9 @@ BEGIN
 	 Accident:=1;
 	 Goto _Break3;
 	End;
-	If Not(RunBileau)Then Begin
-	 {Accident:=1;}
+	If(RunBillot)Then Begin
+	 Accident:=3;
+	 Goto _Break3;
 	End;
     WaitRetrace;
     Dec(Timer);
@@ -466,6 +508,20 @@ _Break4:
     kbUp:If FroggerY>47Then Begin
      UnputFrogger(FroggerX,FroggerY);
      Dec(FroggerY,12);
+	 If FroggerY<48 Then Begin
+	  Inc(Traverser);
+	  If Traverser>3 Then Begin
+       _SetTextPosition(0,0);
+	   _SetTextColor(LightGreen);
+	   _SetBkColor(Green);
+       _OutText('Vous avez gagné, vous avez fait traversé 4 grenouilles sans qu''ils soient écrasé !');
+	   Exit;
+	  End
+	   Else
+	  Begin
+	    Goto _Break3;
+	  End;
+	 End;
      PutFrogger(FroggerX,FroggerY);
     End;
     kbDn:If FroggerY<180Then Begin
@@ -476,23 +532,33 @@ _Break4:
     kbEsc:Exit;
    End;
   Until False;
-_Break3:  
+_Break3:
   {ClrKbd;}
   Case(Accident)of
    1:Begin
     _SetTextPosition(0,0);
 	_SetTextColor(LightRed);
 	_SetBkColor(Green);
-    _OutText('cras‚ par une voiture!');
+    _OutText('Ecrasé par une voiture!');
+	If (ReadKey=#0)Then;
+    Dec(Life);
    End;
    2:Begin
 	_SetTextPosition(0,0);
 	_SetTextColor(LightRed);
 	_SetBkColor(Green);
     _OutText('Manque de temps!');
+	If (ReadKey=#0)Then;
+    Dec(Life);
+   End;
+   3:Begin
+    _SetTextPosition(0,0);
+	_SetTextColor(LightRed);
+	_SetBkColor(Green);
+    _OutText('A côté du billot !');
+	If (ReadKey=#0)Then;
+    Dec(Life);
    End;
   End;
-  If (ReadKey=#0)Then;
-  Dec(Life);
  Until Life=0;
 END.
